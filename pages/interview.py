@@ -1,10 +1,10 @@
 import sys, os
-<<<<<<< HEAD
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 from groq_service import generate_question, evaluate_answer, generate_final_feedback, generate_adaptive_question
-=======
+
 sys.path.insert(0, r"C:\Users\DELL\AI INTERVIEW BOT")
 
 import streamlit as st
@@ -19,7 +19,7 @@ st.title("Interview Room")
 
 <<<<<<< HEAD
 defaults = {
-=======
+
 # --- Session state init ---
 for key, val in {
 >>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
@@ -32,7 +32,7 @@ for key, val in {
     "candidate_name": "",
     "domain": "",
     "difficulty": "",
-<<<<<<< HEAD
+
 }
 
 for key, val in defaults.items():
@@ -111,7 +111,7 @@ else:
                 height=200,
                 placeholder="Type your detailed answer here..."
             )
-=======
+
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -159,45 +159,42 @@ else:
 
         with st.form(f"answer_form_{idx}"):
             answer = st.text_area("Your Answer", height=200, placeholder="Type your detailed answer here...")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
             submitted = st.form_submit_button("Submit Answer")
 
         if submitted and answer.strip():
             with st.spinner("Evaluating your answer..."):
                 evaluation = evaluate_answer(
-<<<<<<< HEAD
+
                     question=question_text,
-=======
+
                     question=q_data.get("question", ""),
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+
                     answer=answer,
                     domain=st.session_state.domain,
                     expected_topics=q_data.get("expected_topics", [])
                 )
-<<<<<<< HEAD
 
-=======
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+
             st.session_state.answers.append(answer)
             st.session_state.evaluations.append(evaluation)
             st.session_state.current_q_index += 1
 
-<<<<<<< HEAD
+
             score = evaluation.get("overall_score", 0)
             verdict = evaluation.get("verdict", "")
 
-=======
+
             # Show quick feedback
             score = evaluation.get("overall_score", 0)
             verdict = evaluation.get("verdict", "")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+
             if score >= 70:
                 st.success(f"Score: {score}/100 — {verdict}")
             elif score >= 50:
                 st.warning(f"Score: {score}/100 — {verdict}")
             else:
                 st.error(f"Score: {score}/100 — {verdict}")
-<<<<<<< HEAD
+
 
             st.rerun()
 
@@ -207,7 +204,7 @@ else:
         total_score = compute_overall_score(st.session_state.evaluations)
         skill_avgs = get_skill_averages(st.session_state.evaluations)
 
-=======
+
             st.rerun()
 
     else:
@@ -217,18 +214,14 @@ else:
         total_score  = compute_overall_score(st.session_state.evaluations)
         skill_avgs   = get_skill_averages(st.session_state.evaluations)
         
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
         with st.spinner("Generating final feedback..."):
             feedback = generate_final_feedback(
                 st.session_state.domain,
                 st.session_state.evaluations,
                 total_score
             )
-<<<<<<< HEAD
 
-=======
         
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
         interview_id = save_interview(
             candidate=st.session_state.candidate_name,
             domain=st.session_state.domain,
@@ -238,7 +231,6 @@ else:
             feedback=feedback
         )
 
-<<<<<<< HEAD
         for q, a, ev in zip(
             st.session_state.questions,
             st.session_state.answers,
@@ -250,7 +242,7 @@ else:
         st.session_state.last_total_score = total_score
         st.session_state.last_skill_avgs = skill_avgs
         st.session_state.last_feedback = feedback
-=======
+
         for i, (q, a, ev) in enumerate(zip(
             st.session_state.questions,
             st.session_state.answers,
