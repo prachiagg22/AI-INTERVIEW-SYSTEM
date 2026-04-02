@@ -1,0 +1,244 @@
+from groq import Groq
+from dotenv import load_dotenv
+import os, json, re, time
+
+# Load environment variables
+load_dotenv()
+
+# Initialize client
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# -------------------------------
+# SAFE API CALL (with retry)
+# -------------------------------
+def _call_groq(prompt: str) -> str:
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a strict technical interviewer."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1024,
+            )
+            return response.choices[0].message.content
+
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(2)
+            else:
+                return f'{{"error": "API failed: {str(e)}"}}'
+
+
+# -------------------------------
+# EXTRACT JSON SAFELY
+# -------------------------------
+def _extract_json(text: str) -> dict:
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except:
+            return {}
+    return {}
+
+
+# -------------------------------
+# GENERATE QUESTION
+# -------------------------------
+def generate_question(domain: str, difficulty: str, asked_questions: list) -> dict:
+    asked_str = "\n".join(f"- {q}" for q in asked_questions[-5:]) or "None"
+
+    prompt = f"""
+You are a senior technical interviewer.
+
+Rules:
+- Do NOT repeat previous questions
+- Ask realistic interview-level questions
+- Increase difficulty gradually
+- Be specific and practical
+
+Domain: {domain}
+Difficulty: {difficulty}
+
+Already asked:
+{asked_str}
+
+Respond ONLY in JSON:
+{{
+  "question": "your question here",
+  "expected_topics": ["topic1", "topic2"],
+  "sample_answer_hints": ["hint1", "hint2"],
+  "difficulty": "{difficulty}"
+}}
+"""
+
+    text = _call_groq(prompt)
+    result = _extract_json(text)
+
+    return result or {
+        "question": "Explain a key concept in " + domain,
+        "expected_topics": [],
+        "sample_answer_hints": [],
+        "difficulty": difficulty
+    }
+
+
+# -------------------------------
+# EVALUATE ANSWER
+# -------------------------------
+def evaluate_answer(question: str, answer: str, domain: str, expected_topics: list) -> dict:
+    topics_str = ", ".join(expected_topics)
+
+    prompt = f"""
+You are a strict technical interviewer.
+
+Evaluate the candidate honestly (DO NOT give full marks easily).
+
+Domain: {domain}
+Question: {question}
+Expected topics: {topics_str}
+Candidate Answer: {answer}
+
+Scoring rules:
+- Be critical
+- Average answer = 50-70
+- Excellent = 80+
+- Weak = below 50
+
+Respond ONLY in JSON:
+{{
+  "domain_knowledge": 0-100,
+  "problem_solving": 0-100,
+  "communication": 0-100,
+  "completeness": 0-100,
+  "overall_score": 0-100,
+  "strengths": ["point"],
+  "improvements": ["point"],
+  "ideal_answer_summary": "short ideal answer",
+  "verdict": "Good / Average / Needs Improvement"
+}}
+"""
+
+    text = _call_groq(prompt)
+    result = _extract_json(text)
+
+    return result or {
+        "domain_knowledge": 50,
+        "problem_solving": 50,
+        "communication": 50,
+        "completeness": 50,
+        "overall_score": 50,
+        "strengths": ["Could not evaluate properly"],
+        "improvements": ["Try again"],
+        "ideal_answer_summary": "N/A",
+        "verdict": "Average"
+    }
+
+
+# -------------------------------
+# FINAL FEEDBACK
+# -------------------------------
+def generate_final_feedback(domain: str, all_scores: list, total_score: float) -> str:
+    if not all_scores:
+        return "No data available."
+
+    avg_scores = {
+        k: round(sum(s.get(k, 0) for s in all_scores) / len(all_scores), 1)
+        for k in ["domain_knowledge", "problem_solving", "communication"]
+    }
+
+    prompt = f"""
+You are a senior HR and technical lead.
+
+A candidate completed a {domain} interview.
+
+Overall Score: {total_score:.1f}/100
+Skill Breakdown: {avg_scores}
+
+Write:
+- 4-5 line professional feedback
+- Strength summary
+- Weakness summary
+- Hiring recommendation
+"""
+
+    return _call_groq(prompt)
+def analyze_resume(resume_text: str) -> dict:
+    prompt = f"""You are an expert HR analyst and technical recruiter.
+Analyze this resume and extract key information.
+
+Resume:
+{resume_text[:3000]}
+
+Respond ONLY in this JSON format:
+{{
+  "candidate_name": "name from resume",
+  "skills": ["skill1", "skill2", "skill3"],
+  "experience_years": 2,
+  "education": "highest degree",
+  "suggested_domain": "Python or Web Development or Machine Learning etc",
+  "suggested_difficulty": "Easy or Medium or Hard",
+  "key_strengths": ["strength1", "strength2"],
+  "suggested_topics": ["topic1", "topic2", "topic3"]
+}}"""
+    text = _call_groq(prompt)
+    return _extract_json(text)
+
+
+def generate_resume_based_question(domain: str, difficulty: str, resume_skills: list, asked_questions: list) -> dict:
+    asked_str = "\n".join(f"- {q}" for q in asked_questions[-3:]) or "None yet"
+    skills_str = ", ".join(resume_skills[:5])
+    
+    prompt = f"""You are a senior technical interviewer.
+The candidate has these skills from their resume: {skills_str}
+Generate ONE {difficulty} level interview question for domain: {domain}
+Make the question relevant to their actual skills.
+
+Already asked:
+{asked_str}
+
+Respond ONLY in this JSON format:
+{{
+  "question": "your question here",
+  "expected_topics": ["topic1", "topic2"],
+  "sample_answer_hints": ["hint1", "hint2"],
+  "difficulty": "{difficulty}"
+}}"""
+    text = _call_groq(prompt)
+    return _extract_json(text)
+def generate_adaptive_question(domain: str, difficulty: str, asked_questions: list, avg_score: float) -> dict:
+    # Auto adjust difficulty based on score
+    if avg_score >= 80:
+        adjusted_difficulty = "Hard"
+    elif avg_score >= 60:
+        adjusted_difficulty = "Medium"
+    else:
+        adjusted_difficulty = "Easy"
+
+    asked_str = "\n".join(f"- {q}" for q in asked_questions[-3:]) or "None yet"
+
+    prompt = f"""You are a senior technical interviewer.
+The candidate's current average score is {avg_score:.1f}/100.
+Based on performance, generate ONE {adjusted_difficulty} level question for: {domain}
+
+Already asked:
+{asked_str}
+
+Respond ONLY in this JSON format:
+{{
+  "question": "your question here",
+  "expected_topics": ["topic1", "topic2"],
+  "sample_answer_hints": ["hint1", "hint2"],
+  "difficulty": "{adjusted_difficulty}"
+}}"""
+    text = _call_groq(prompt)
+    result = _extract_json(text)
+    result["adjusted_difficulty"] = adjusted_difficulty
+<<<<<<< HEAD
+    return result
+=======
+    return result
+>>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
