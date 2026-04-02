@@ -1,28 +1,29 @@
 import sys, os
-<<<<<<< HEAD
+import streamlit as st
+
+# Fix import path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import streamlit as st
-from groq_service import generate_question, evaluate_answer, generate_final_feedback, generate_adaptive_question
-=======
-sys.path.insert(0, r"C:\Users\DELL\AI INTERVIEW BOT")
-
-import streamlit as st
-from gemini_service import generate_question, evaluate_answer, generate_final_feedback
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+from groq_service import (
+    generate_question,
+    evaluate_answer,
+    generate_final_feedback,
+    generate_adaptive_question
+)
 from skill_evaluator import compute_overall_score, get_skill_averages, get_recommendation
 from db import save_interview, save_session
 from config import DOMAINS, DIFFICULTY_LEVELS, QUESTIONS_PER_INTERVIEW
 
+# ==============================
+# PAGE SETUP
+# ==============================
 st.set_page_config(page_title="Interview Room", layout="wide")
 st.title("Interview Room")
 
-<<<<<<< HEAD
+# ==============================
+# SESSION STATE INIT
+# ==============================
 defaults = {
-=======
-# --- Session state init ---
-for key, val in {
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
     "interview_started": False,
     "current_q_index": 0,
     "questions": [],
@@ -32,20 +33,24 @@ for key, val in {
     "candidate_name": "",
     "domain": "",
     "difficulty": "",
-<<<<<<< HEAD
 }
 
 for key, val in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
+# ==============================
+# SETUP SCREEN
+# ==============================
 if not st.session_state.interview_started:
     st.subheader("Setup Your Interview")
+
     with st.form("setup_form"):
         name = st.text_input("Your Name")
         domain = st.selectbox("Domain", DOMAINS)
         difficulty = st.selectbox("Difficulty", DIFFICULTY_LEVELS)
         submitted = st.form_submit_button("Start Interview")
+
     if submitted and name:
         st.session_state.candidate_name = name
         st.session_state.domain = domain
@@ -53,6 +58,9 @@ if not st.session_state.interview_started:
         st.session_state.interview_started = True
         st.rerun()
 
+# ==============================
+# INTERVIEW FLOW
+# ==============================
 else:
     idx = st.session_state.current_q_index
     total = QUESTIONS_PER_INTERVIEW
@@ -64,171 +72,112 @@ else:
         f"Difficulty: {st.session_state.difficulty}"
     )
 
+    # ==============================
+    # QUESTIONS
+    # ==============================
     if idx < total:
+
+        # Generate new question if needed
         if len(st.session_state.questions) <= idx:
             with st.spinner("Generating next question..."):
-                if st.session_state.evaluations:
-                    avg_score = sum(
-                        e.get("overall_score", 0)
-                        for e in st.session_state.evaluations
-                    ) / len(st.session_state.evaluations)
-                    q_data = generate_adaptive_question(
-                        st.session_state.domain,
-                        st.session_state.difficulty,
-                        st.session_state.asked_questions,
-                        avg_score
-                    )
-                    adjusted = q_data.get("adjusted_difficulty", st.session_state.difficulty)
-                    if adjusted != st.session_state.difficulty:
-                        st.info(f"Difficulty adjusted to {adjusted} based on your performance!")
-                else:
-                    q_data = generate_question(
-                        st.session_state.domain,
-                        st.session_state.difficulty,
-                        st.session_state.asked_questions
-                    )
+                try:
+                    if st.session_state.evaluations:
+                        avg_score = sum(
+                            e.get("overall_score", 0)
+                            for e in st.session_state.evaluations
+                        ) / len(st.session_state.evaluations)
+
+                        q_data = generate_adaptive_question(
+                            st.session_state.domain,
+                            st.session_state.difficulty,
+                            st.session_state.asked_questions,
+                            avg_score
+                        )
+                    else:
+                        q_data = generate_question(
+                            st.session_state.domain,
+                            st.session_state.difficulty,
+                            st.session_state.asked_questions
+                        )
+                except Exception as e:
+                    st.error(f"Error generating question: {e}")
+                    st.stop()
 
             if not q_data or "question" not in q_data:
-                st.error("Failed to generate question. Retrying...")
-                st.rerun()
+                st.error("Failed to generate question. Please try again.")
+                st.stop()
 
             st.session_state.questions.append(q_data)
             st.session_state.asked_questions.append(q_data["question"])
 
+        # Show question
         q_data = st.session_state.questions[idx]
-        question_text = q_data.get("question")
-
-        if not question_text:
-            st.error("Question not available")
-            st.stop()
+        question_text = q_data.get("question", "")
 
         st.markdown(f"### Q{idx + 1}. {question_text}")
         st.caption(f"Expected topics: {', '.join(q_data.get('expected_topics', []))}")
 
+        # Answer form
         with st.form(f"answer_form_{idx}"):
             answer = st.text_area(
                 "Your Answer",
                 height=200,
                 placeholder="Type your detailed answer here..."
             )
-=======
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
-
-# --- Setup form ---
-if not st.session_state.interview_started:
-    st.subheader("Setup Your Interview")
-    with st.form("setup_form"):
-        name       = st.text_input("Your Name")
-        domain     = st.selectbox("Domain", DOMAINS)
-        difficulty = st.selectbox("Difficulty", DIFFICULTY_LEVELS)
-        submitted  = st.form_submit_button("Start Interview")
-    
-    if submitted and name:
-        st.session_state.candidate_name = name
-        st.session_state.domain         = domain
-        st.session_state.difficulty     = difficulty
-        st.session_state.interview_started = True
-        st.rerun()
-
-# --- Active interview ---
-else:
-    idx   = st.session_state.current_q_index
-    total = QUESTIONS_PER_INTERVIEW
-
-    st.progress(idx / total, text=f"Question {idx + 1} of {total}")
-    st.caption(f"Candidate: {st.session_state.candidate_name}  |  Domain: {st.session_state.domain}  |  Difficulty: {st.session_state.difficulty}")
-
-    if idx < total:
-        # Generate question if not already done for this index
-        if len(st.session_state.questions) <= idx:
-            with st.spinner("Generating next question..."):
-                q_data = generate_question(
-                    st.session_state.domain,
-                    st.session_state.difficulty,
-                    st.session_state.asked_questions
-                )
-            st.session_state.questions.append(q_data)
-            st.session_state.asked_questions.append(q_data.get("question", ""))
-
-        q_data = st.session_state.questions[idx]
-
-        st.markdown(f"### Q{idx+1}. {q_data.get('question', 'Loading...')}")
-        st.caption(f"Expected topics: {', '.join(q_data.get('expected_topics', []))}")
-
-        with st.form(f"answer_form_{idx}"):
-            answer = st.text_area("Your Answer", height=200, placeholder="Type your detailed answer here...")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
             submitted = st.form_submit_button("Submit Answer")
 
+        # Evaluate answer
         if submitted and answer.strip():
             with st.spinner("Evaluating your answer..."):
-                evaluation = evaluate_answer(
-<<<<<<< HEAD
-                    question=question_text,
-=======
-                    question=q_data.get("question", ""),
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
-                    answer=answer,
-                    domain=st.session_state.domain,
-                    expected_topics=q_data.get("expected_topics", [])
-                )
-<<<<<<< HEAD
+                try:
+                    evaluation = evaluate_answer(
+                        question=question_text,
+                        answer=answer,
+                        domain=st.session_state.domain,
+                        expected_topics=q_data.get("expected_topics", [])
+                    )
+                except Exception as e:
+                    st.error(f"Error evaluating answer: {e}")
+                    st.stop()
 
-=======
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
             st.session_state.answers.append(answer)
             st.session_state.evaluations.append(evaluation)
             st.session_state.current_q_index += 1
 
-<<<<<<< HEAD
             score = evaluation.get("overall_score", 0)
             verdict = evaluation.get("verdict", "")
 
-=======
-            # Show quick feedback
-            score = evaluation.get("overall_score", 0)
-            verdict = evaluation.get("verdict", "")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
             if score >= 70:
                 st.success(f"Score: {score}/100 — {verdict}")
             elif score >= 50:
                 st.warning(f"Score: {score}/100 — {verdict}")
             else:
                 st.error(f"Score: {score}/100 — {verdict}")
-<<<<<<< HEAD
 
             st.rerun()
 
+    # ==============================
+    # FINAL REPORT
+    # ==============================
     else:
         st.success("Interview complete! Generating your report...")
 
         total_score = compute_overall_score(st.session_state.evaluations)
         skill_avgs = get_skill_averages(st.session_state.evaluations)
 
-=======
-            st.rerun()
-
-    else:
-        # Interview complete
-        st.success("Interview complete! Generating your report...")
-        
-        total_score  = compute_overall_score(st.session_state.evaluations)
-        skill_avgs   = get_skill_averages(st.session_state.evaluations)
-        
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+        # Generate feedback
         with st.spinner("Generating final feedback..."):
-            feedback = generate_final_feedback(
-                st.session_state.domain,
-                st.session_state.evaluations,
-                total_score
-            )
-<<<<<<< HEAD
+            try:
+                feedback = generate_final_feedback(
+                    st.session_state.domain,
+                    st.session_state.evaluations,
+                    total_score
+                )
+            except Exception as e:
+                st.error(f"Error generating feedback: {e}")
+                st.stop()
 
-=======
-        
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+        # Save interview
         interview_id = save_interview(
             candidate=st.session_state.candidate_name,
             domain=st.session_state.domain,
@@ -238,7 +187,7 @@ else:
             feedback=feedback
         )
 
-<<<<<<< HEAD
+        # Save each Q&A
         for q, a, ev in zip(
             st.session_state.questions,
             st.session_state.answers,
@@ -246,26 +195,15 @@ else:
         ):
             save_session(interview_id, q.get("question", ""), a, ev)
 
+        # Store results
         st.session_state.last_interview_id = interview_id
         st.session_state.last_total_score = total_score
         st.session_state.last_skill_avgs = skill_avgs
         st.session_state.last_feedback = feedback
-=======
-        for i, (q, a, ev) in enumerate(zip(
-            st.session_state.questions,
-            st.session_state.answers,
-            st.session_state.evaluations
-        )):
-            save_session(interview_id, q.get("question",""), a, ev)
 
-        # Store in session for Results page
-        st.session_state.last_interview_id  = interview_id
-        st.session_state.last_total_score   = total_score
-        st.session_state.last_skill_avgs    = skill_avgs
-        st.session_state.last_feedback      = feedback
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+        recommendation, _ = get_recommendation(total_score)
 
-        recommendation, color = get_recommendation(total_score)
         st.metric("Overall Score", f"{total_score:.1f} / 100")
         st.info(f"Recommendation: **{recommendation}**")
+
         st.switch_page("pages/results.py")
