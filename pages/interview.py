@@ -9,7 +9,6 @@ sys.path.insert(0, r"C:\Users\DELL\AI INTERVIEW BOT")
 
 import streamlit as st
 from gemini_service import generate_question, evaluate_answer, generate_final_feedback
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
 from skill_evaluator import compute_overall_score, get_skill_averages, get_recommendation
 from db import save_interview, save_session
 from config import DOMAINS, DIFFICULTY_LEVELS, QUESTIONS_PER_INTERVIEW
@@ -17,7 +16,6 @@ from config import DOMAINS, DIFFICULTY_LEVELS, QUESTIONS_PER_INTERVIEW
 st.set_page_config(page_title="Interview Room", layout="wide")
 st.title("Interview Room")
 
-<<<<<<< HEAD
 defaults = {
 
 # --- Session state init ---
@@ -255,7 +253,6 @@ else:
         st.session_state.last_total_score   = total_score
         st.session_state.last_skill_avgs    = skill_avgs
         st.session_state.last_feedback      = feedback
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
 
         recommendation, color = get_recommendation(total_score)
         st.metric("Overall Score", f"{total_score:.1f} / 100")
