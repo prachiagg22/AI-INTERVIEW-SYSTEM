@@ -104,8 +104,8 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Interviews", len(df))
 col2.metric("Highest Score", f"{df['Overall Score'].max()}/100")
 col3.metric("Average Score", f"{df['Overall Score'].mean():.1f}/100")
-<<<<<<< HEAD
+
 col4.metric("Domains Covered", df["Domain"].nunique())
-=======
+
 col4.metric("Domains Covered", df["Domain"].nunique())
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+

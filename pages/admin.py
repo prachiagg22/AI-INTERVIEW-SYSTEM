@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,7 +28,7 @@ try:
         st.info("No interviews conducted yet.")
 except Exception as e:
     st.error(f"Error loading interviews: {e}")
-=======
+
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -58,4 +58,4 @@ try:
         st.info("No interviews conducted yet.")
 except Exception as e:
     st.error(f"Error loading interviews: {e}")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+

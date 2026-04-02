@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -38,7 +38,7 @@ st.markdown("""
 """)
 
 st.info("Click on **Interview** in the sidebar to start!")
-=======
+
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -78,4 +78,3 @@ st.markdown("""
 """)
 
 st.info("Click on **Interview** in the sidebar to start!")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185

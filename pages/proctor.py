@@ -82,8 +82,8 @@ if col2.button("Start Proctored Interview"):
     st.session_state.answers = []
     st.session_state.evaluations = []
     st.session_state.asked_questions = []
-<<<<<<< HEAD
+
     st.switch_page("pages/interview.py")
-=======
+
     st.switch_page("pages/interview.py")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+

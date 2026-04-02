@@ -1,7 +1,6 @@
-<<<<<<< HEAD
+
 from pdf_report import generate_pdf_report
-=======
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+
 import streamlit as st
 import plotly.graph_objects as go
 from skill_evaluator import get_recommendation
@@ -55,7 +54,7 @@ for i, (q, a, ev) in enumerate(zip(
         st.markdown(f"**Score:** {ev.get('overall_score',0)}/100")
         st.markdown(f"**Strengths:** {', '.join(ev.get('strengths', []))}")
         st.markdown(f"**Improvements:** {', '.join(ev.get('improvements', []))}")
-<<<<<<< HEAD
+
         st.markdown(f"**Ideal answer:** {ev.get('ideal_answer_summary', '')}")
         st.divider()
 st.subheader("Download Report")
@@ -78,6 +77,5 @@ if st.button("Download PDF Report"):
         file_name="interview_report.pdf",
         mime="application/pdf"
     )
-=======
-        st.markdown(f"**Ideal answer:** {ev.get('ideal_answer_summary', '')}")
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
+
+    st.markdown(f"**Ideal answer:** {ev.get('ideal_answer_summary', '')}")
