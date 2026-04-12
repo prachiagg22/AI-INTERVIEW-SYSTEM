@@ -138,9 +138,44 @@ else:
             st.stop()
 
         st.markdown(f"### Q{idx + 1}. {question_text}")
-        st.caption(
-            f"Expected topics: {', '.join(q_data.get('expected_topics', []))}"
-        )
+st.caption(f"Expected topics: {', '.join(q_data.get('expected_topics', []))}")
+
+# Timer
+import time
+if "timer_start" not in st.session_state or st.session_state.get("timer_q_index") != idx:
+    st.session_state.timer_start = time.time()
+    st.session_state.timer_q_index = idx
+
+time_limit = 120  # 2 minutes per question
+elapsed = time.time() - st.session_state.timer_start
+remaining = max(0, time_limit - int(elapsed))
+mins = remaining // 60
+secs = remaining % 60
+
+if remaining > 30:
+    st.success(f"Time remaining: {mins:02d}:{secs:02d}")
+elif remaining > 10:
+    st.warning(f"Time remaining: {mins:02d}:{secs:02d}")
+else:
+    st.error(f"Time remaining: {mins:02d}:{secs:02d}")
+
+if remaining == 0:
+    st.warning("Time is up! Auto submitting your answer...")
+    st.session_state.answers.append("No answer provided - time expired")
+    st.session_state.evaluations.append({
+        "domain_knowledge": 0, "problem_solving": 0,
+        "communication": 0, "completeness": 0,
+        "overall_score": 0, "strengths": [],
+        "improvements": ["Did not answer within time limit"],
+        "ideal_answer_summary": "No answer provided",
+        "verdict": "Needs Improvement"
+    })
+    st.session_state.current_q_index += 1
+    st.rerun()
+
+# Auto refresh every second
+time.sleep(1)
+st.rerun()
 
         # -------------------------------
         # ANSWER FORM
