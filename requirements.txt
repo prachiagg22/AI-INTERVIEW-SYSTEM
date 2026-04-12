@@ -4,8 +4,5 @@ python-dotenv
 plotly
 reportlab
 pandas
-<<<<<<< HEAD
 pymupdf
-=======
 pymupdf
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185

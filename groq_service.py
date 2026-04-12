@@ -8,6 +8,7 @@ load_dotenv()
 # Initialize client
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+
 # -------------------------------
 # SAFE API CALL (with retry)
 # -------------------------------
@@ -36,12 +37,15 @@ def _call_groq(prompt: str) -> str:
 # EXTRACT JSON SAFELY
 # -------------------------------
 def _extract_json(text: str) -> dict:
-    match = re.search(r'\{.*\}', text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except:
-            return {}
+    try:
+        return json.loads(text)
+    except:
+        match = re.search(r'\{.*?\}', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except:
+                return {}
     return {}
 
 
@@ -79,7 +83,7 @@ Respond ONLY in JSON:
     result = _extract_json(text)
 
     return result or {
-        "question": "Explain a key concept in " + domain,
+        "question": f"Explain a key concept in {domain}",
         "expected_topics": [],
         "sample_answer_hints": [],
         "difficulty": difficulty
@@ -166,6 +170,11 @@ Write:
 """
 
     return _call_groq(prompt)
+
+
+# -------------------------------
+# RESUME ANALYSIS
+# -------------------------------
 def analyze_resume(resume_text: str) -> dict:
     prompt = f"""You are an expert HR analyst and technical recruiter.
 Analyze this resume and extract key information.
@@ -188,10 +197,13 @@ Respond ONLY in this JSON format:
     return _extract_json(text)
 
 
+# -------------------------------
+# RESUME-BASED QUESTION
+# -------------------------------
 def generate_resume_based_question(domain: str, difficulty: str, resume_skills: list, asked_questions: list) -> dict:
     asked_str = "\n".join(f"- {q}" for q in asked_questions[-3:]) or "None yet"
     skills_str = ", ".join(resume_skills[:5])
-    
+
     prompt = f"""You are a senior technical interviewer.
 The candidate has these skills from their resume: {skills_str}
 Generate ONE {difficulty} level interview question for domain: {domain}
@@ -209,8 +221,12 @@ Respond ONLY in this JSON format:
 }}"""
     text = _call_groq(prompt)
     return _extract_json(text)
+
+
+# -------------------------------
+# ADAPTIVE QUESTION
+# -------------------------------
 def generate_adaptive_question(domain: str, difficulty: str, asked_questions: list, avg_score: float) -> dict:
-    # Auto adjust difficulty based on score
     if avg_score >= 80:
         adjusted_difficulty = "Hard"
     elif avg_score >= 60:
@@ -234,11 +250,17 @@ Respond ONLY in this JSON format:
   "sample_answer_hints": ["hint1", "hint2"],
   "difficulty": "{adjusted_difficulty}"
 }}"""
+
     text = _call_groq(prompt)
     result = _extract_json(text)
+
+    if not result:
+        result = {
+            "question": f"Explain a key concept in {domain}",
+            "expected_topics": [],
+            "sample_answer_hints": [],
+            "difficulty": adjusted_difficulty
+        }
+
     result["adjusted_difficulty"] = adjusted_difficulty
-<<<<<<< HEAD
     return result
-=======
-    return result
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185

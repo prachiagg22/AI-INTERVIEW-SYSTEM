@@ -60,8 +60,7 @@ def generate_pdf_report(candidate, domain, difficulty, total_score, skill_avgs, 
 
     doc.build(story)
     buffer.seek(0)
-<<<<<<< HEAD
+
     return buffer
-=======
+
     return buffer
->>>>>>> 3f4fcfae6056b8a8090aeac73e6cb21a77bf8185
