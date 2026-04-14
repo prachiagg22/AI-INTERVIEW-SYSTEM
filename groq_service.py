@@ -295,3 +295,51 @@ Respond ONLY in this JSON format:
 }}"""
     text = _call_groq(prompt)
     return _extract_json(text)
+# -------------------------------
+# 🎯 ROUND-BASED QUESTION ROUTER
+# -------------------------------
+def generate_round_question(round_name, domain, difficulty, asked_questions):
+    if round_name == "HR Round":
+        return generate_hr_question(asked_questions)
+
+    elif round_name == "System Design Round":
+        return generate_system_design_question(asked_questions)
+
+    else:  # Technical Round
+        return generate_question(domain, difficulty, asked_questions)
+
+
+# -------------------------------
+# 🔁 ADAPTIVE ROUND QUESTION
+# -------------------------------
+def generate_adaptive_round_question(round_name, domain, difficulty, asked_questions, avg_score):
+    
+    if round_name == "HR Round":
+        return generate_hr_question(asked_questions)
+
+    elif round_name == "System Design Round":
+        return generate_system_design_question(asked_questions)
+
+    else:
+        return generate_adaptive_question(domain, difficulty, asked_questions, avg_score)
+    # -------------------------------
+# 🚨 AI CHEATING DETECTION
+# -------------------------------
+def detect_ai_answer(answer: str) -> str:
+    prompt = f"""
+    You are an AI detection system.
+
+    Analyze the following answer and determine if it is:
+    - Human-written
+    - AI-generated
+    - Uncertain
+
+    Answer:
+    {answer}
+
+    Respond ONLY with one word:
+    Human OR AI OR Uncertain
+    """
+
+    result = _call_groq(prompt)
+    return result.strip()

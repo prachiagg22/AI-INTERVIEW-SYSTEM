@@ -1,8 +1,7 @@
 import sqlite3, json
 from datetime import datetime
 
-DB_PATH = "database/interviews.db"
-
+DB_PATH = "interviews.db"
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

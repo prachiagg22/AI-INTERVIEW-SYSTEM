@@ -1,37 +1,24 @@
-import sys
-import os
-
-# Fix import path (for pages folder)
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import time
 import streamlit as st
-
 from groq_service import (
-    generate_question,
+    generate_round_question,
+    generate_adaptive_round_question,
     evaluate_answer,
     generate_final_feedback,
-    generate_adaptive_question
+    detect_ai_answer
 )
-
-from skill_evaluator import (
-    compute_overall_score,
-    get_skill_averages,
-    get_recommendation
-)
-
+from skill_evaluator import compute_overall_score, get_skill_averages, get_recommendation
 from db import save_interview, save_session
 from config import DOMAINS, DIFFICULTY_LEVELS, QUESTIONS_PER_INTERVIEW
 
-
-# -------------------------------
-# PAGE CONFIG
-# -------------------------------
 st.set_page_config(page_title="Interview Room", layout="wide")
 st.title("Interview Room")
 
-
 # -------------------------------
-# SESSION STATE DEFAULTS
+# SESSION DEFAULTS
 # -------------------------------
 defaults = {
     "interview_started": False,
@@ -43,15 +30,17 @@ defaults = {
     "candidate_name": "",
     "domain": "",
     "difficulty": "",
+    "round_name": "Technical Round",
+    "timer_start": None,
+    "timer_q_index": -1,
 }
 
 for key, val in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-
 # -------------------------------
-# INTERVIEW SETUP SCREEN
+# SETUP SCREEN
 # -------------------------------
 if not st.session_state.interview_started:
     st.subheader("Setup Your Interview")
@@ -69,7 +58,6 @@ if not st.session_state.interview_started:
         st.session_state.interview_started = True
         st.rerun()
 
-
 # -------------------------------
 # INTERVIEW FLOW
 # -------------------------------
@@ -80,16 +68,16 @@ else:
     st.progress(idx / total, text=f"Question {idx + 1} of {total}")
     st.caption(
         f"Candidate: {st.session_state.candidate_name} | "
+        f"Round: {st.session_state.round_name} | "
         f"Domain: {st.session_state.domain} | "
         f"Difficulty: {st.session_state.difficulty}"
     )
 
-    # -------------------------------
-    # ASK QUESTIONS
-    # -------------------------------
     if idx < total:
 
-        # Generate new question if needed
+        # -------------------------------
+        # GENERATE QUESTION
+        # -------------------------------
         if len(st.session_state.questions) <= idx:
             with st.spinner("Generating next question..."):
                 try:
@@ -99,19 +87,22 @@ else:
                             for e in st.session_state.evaluations
                         ) / len(st.session_state.evaluations)
 
-                        q_data = generate_adaptive_question(
+                        q_data = generate_adaptive_round_question(
+                            st.session_state.round_name,
                             st.session_state.domain,
                             st.session_state.difficulty,
                             st.session_state.asked_questions,
                             avg_score
                         )
 
-                        adjusted = q_data.get("adjusted_difficulty")
-                        if adjusted and adjusted != st.session_state.difficulty:
-                            st.info(f"Difficulty adjusted to {adjusted}")
+                        if st.session_state.round_name == "Technical Round":
+                            adjusted = q_data.get("adjusted_difficulty", st.session_state.difficulty)
+                            if adjusted != st.session_state.difficulty:
+                                st.info(f"Difficulty adjusted to {adjusted} based on your performance!")
 
                     else:
-                        q_data = generate_question(
+                        q_data = generate_round_question(
+                            st.session_state.round_name,
                             st.session_state.domain,
                             st.session_state.difficulty,
                             st.session_state.asked_questions
@@ -121,15 +112,18 @@ else:
                     st.error(f"Error generating question: {e}")
                     st.stop()
 
-            # Fallback if question missing
             if not q_data or "question" not in q_data:
                 st.error("Failed to generate question. Retrying...")
                 st.rerun()
 
             st.session_state.questions.append(q_data)
             st.session_state.asked_questions.append(q_data["question"])
+            st.session_state.timer_start = time.time()
+            st.session_state.timer_q_index = idx
 
-        # Display question
+        # -------------------------------
+        # DISPLAY QUESTION
+        # -------------------------------
         q_data = st.session_state.questions[idx]
         question_text = q_data.get("question")
 
@@ -138,44 +132,45 @@ else:
             st.stop()
 
         st.markdown(f"### Q{idx + 1}. {question_text}")
-st.caption(f"Expected topics: {', '.join(q_data.get('expected_topics', []))}")
+        st.caption(f"Expected topics: {', '.join(q_data.get('expected_topics', []))}")
 
-# Timer
-import time
-if "timer_start" not in st.session_state or st.session_state.get("timer_q_index") != idx:
-    st.session_state.timer_start = time.time()
-    st.session_state.timer_q_index = idx
+        # -------------------------------
+        # TIMER
+        # -------------------------------
+        if st.session_state.timer_start:
+            time_limit = 120
+            elapsed = time.time() - st.session_state.timer_start
+            remaining = max(0, time_limit - int(elapsed))
 
-time_limit = 120  # 2 minutes per question
-elapsed = time.time() - st.session_state.timer_start
-remaining = max(0, time_limit - int(elapsed))
-mins = remaining // 60
-secs = remaining % 60
+            mins = remaining // 60
+            secs = remaining % 60
 
-if remaining > 30:
-    st.success(f"Time remaining: {mins:02d}:{secs:02d}")
-elif remaining > 10:
-    st.warning(f"Time remaining: {mins:02d}:{secs:02d}")
-else:
-    st.error(f"Time remaining: {mins:02d}:{secs:02d}")
+            if remaining > 30:
+                st.success(f"Time remaining: {mins:02d}:{secs:02d}")
+            elif remaining > 10:
+                st.warning(f"Time remaining: {mins:02d}:{secs:02d}")
+            else:
+                st.error(f"Time remaining: {mins:02d}:{secs:02d}")
 
-if remaining == 0:
-    st.warning("Time is up! Auto submitting your answer...")
-    st.session_state.answers.append("No answer provided - time expired")
-    st.session_state.evaluations.append({
-        "domain_knowledge": 0, "problem_solving": 0,
-        "communication": 0, "completeness": 0,
-        "overall_score": 0, "strengths": [],
-        "improvements": ["Did not answer within time limit"],
-        "ideal_answer_summary": "No answer provided",
-        "verdict": "Needs Improvement"
-    })
-    st.session_state.current_q_index += 1
-    st.rerun()
+            if remaining == 0:
+                st.warning("Time is up! Auto submitting...")
 
-# Auto refresh every second
-time.sleep(1)
-st.rerun()
+                st.session_state.answers.append("No answer - time expired")
+                st.session_state.evaluations.append({
+                    "domain_knowledge": 0,
+                    "problem_solving": 0,
+                    "communication": 0,
+                    "completeness": 0,
+                    "overall_score": 0,
+                    "strengths": [],
+                    "improvements": ["Did not answer within time limit"],
+                    "ideal_answer_summary": "No answer provided",
+                    "verdict": "Needs Improvement"
+                })
+
+                st.session_state.current_q_index += 1
+                st.session_state.timer_start = None
+                st.rerun()
 
         # -------------------------------
         # ANSWER FORM
@@ -188,7 +183,20 @@ st.rerun()
             )
             submitted = st.form_submit_button("Submit Answer")
 
+        # -------------------------------
+        # EVALUATE ANSWER + AI DETECTION
+        # -------------------------------
         if submitted and answer.strip():
+
+            # 🚨 AI Detection
+            with st.spinner("Checking answer authenticity..."):
+                detection = detect_ai_answer(answer)
+
+            if "AI" in detection:
+                st.error("⚠️ AI-generated answer detected! Please answer in your own words.")
+                st.stop()
+
+            # ✅ Evaluate Answer
             with st.spinner("Evaluating your answer..."):
                 try:
                     evaluation = evaluate_answer(
@@ -201,15 +209,14 @@ st.rerun()
                     st.error(f"Error evaluating answer: {e}")
                     st.stop()
 
-            # Store results
             st.session_state.answers.append(answer)
             st.session_state.evaluations.append(evaluation)
             st.session_state.current_q_index += 1
+            st.session_state.timer_start = None
 
             score = evaluation.get("overall_score", 0)
             verdict = evaluation.get("verdict", "")
 
-            # Show feedback
             if score >= 70:
                 st.success(f"Score: {score}/100 — {verdict}")
             elif score >= 50:
@@ -219,8 +226,11 @@ st.rerun()
 
             st.rerun()
 
+        time.sleep(1)
+        st.rerun()
+
     # -------------------------------
-    # FINAL RESULT
+    # FINAL REPORT
     # -------------------------------
     else:
         st.success("Interview complete! Generating your report...")
@@ -239,7 +249,6 @@ st.rerun()
                 st.error(f"Error generating feedback: {e}")
                 st.stop()
 
-        # Save interview
         interview_id = save_interview(
             candidate=st.session_state.candidate_name,
             domain=st.session_state.domain,
@@ -256,17 +265,14 @@ st.rerun()
         ):
             save_session(interview_id, q.get("question", ""), a, ev)
 
-        # Store last results
         st.session_state.last_interview_id = interview_id
         st.session_state.last_total_score = total_score
         st.session_state.last_skill_avgs = skill_avgs
         st.session_state.last_feedback = feedback
 
-        # Recommendation
         recommendation, _ = get_recommendation(total_score)
 
         st.metric("Overall Score", f"{total_score:.1f} / 100")
         st.info(f"Recommendation: **{recommendation}**")
 
-        # Go to results page
         st.switch_page("pages/results.py")
